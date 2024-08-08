@@ -54,6 +54,7 @@ def main():
             st.info("Please add your OpenAI API key to continue.")
             st.stop()
         
+        #RAG
         files_text = get_text(uploaded_files)
         text_chunks = get_text_chunks(files_text)
         vetorestore = get_vectorstore(text_chunks)
