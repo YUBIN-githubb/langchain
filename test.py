@@ -63,6 +63,7 @@ def main():
 
         st.session_state.processComplete = True
 
+    #session_state에 message가 없는경우 즉 사용자가 아직 아무런 메세지를 입력하지 않았을 경우
     if 'messages' not in st.session_state:
         st.session_state['messages'] = [{"role": "assistant", 
                                         "content": "안녕하세요! 주어진 문서에 대해 궁금하신 것이 있으면 언제든 물어봐주세요!"}]
