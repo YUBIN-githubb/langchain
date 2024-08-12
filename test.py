@@ -1,6 +1,7 @@
 import streamlit as st
 import tiktoken
 from loguru import logger
+import os
 
 #retriever, llm
 from langchain.chains import ConversationalRetrievalChain
@@ -55,6 +56,8 @@ def main():
             st.stop()
         
         #RAG
+        #directory_path = "C:/Users/ASUS/test pdf"
+        #files_text = get_text_from_local(directory_path)
         files_text = get_text(uploaded_files)
         text_chunks = get_text_chunks(files_text)
         vetorestore = get_vectorstore(text_chunks)
@@ -93,11 +96,22 @@ def main():
 
                 st.markdown(response)
                 #문서가 너무 짧으면 source_document[2]에 값이 없어서 list out of range로 오류가 날 수 있음
+
+                
                 with st.expander("참고 문서 확인"):
-                    st.markdown(source_documents[0].metadata['source'], help = source_documents[0].page_content)
-                    st.markdown(source_documents[1].metadata['source'], help = source_documents[1].page_content)
-                    st.markdown(source_documents[2].metadata['source'], help = source_documents[2].page_content)
-                    
+                    if source_documents:
+                        for i, doc in enumerate(source_documents):
+                            if i >= 3:  # 최대 3개까지만 표시
+                                break
+                            source = doc.metadata.get('source', '출처 없음')
+                            content = doc.page_content if hasattr(doc, 'page_content') else '내용 없음'
+                            st.markdown(f"문서 {i+1}: {source}", help=content)
+                    else:
+                        st.write("참고할 문서가 없습니다.")
+
+                #print(f"source_documents의 길이: {len(source_documents)}")
+                #print(f"source_documents의 타입: {type(source_documents)}")
+                
 
 
 # Add assistant message to chat history
@@ -107,6 +121,30 @@ def tiktoken_len(text):
     tokenizer = tiktoken.get_encoding("cl100k_base")
     tokens = tokenizer.encode(text)
     return len(tokens)
+
+def get_text_from_local(directory_path):
+    doc_list = []
+    
+    for filename in os.listdir(directory_path):
+        file_path = os.path.join(directory_path, filename)
+        
+        if filename.endswith('.pdf'):
+            loader = PyPDFLoader(file_path)
+            documents = loader.load_and_split()
+        elif filename.endswith('.docx'):
+            loader = Docx2txtLoader(file_path)
+            documents = loader.load_and_split()
+        elif filename.endswith('.pptx'):
+            loader = UnstructuredPowerPointLoader(file_path)
+            documents = loader.load_and_split()
+        else:
+            continue  # 지원되지 않는 파일 형식은 건너뜁니다.
+
+        doc_list.extend(documents)
+        print(f"Processed {filename}")
+
+    return doc_list
+
 
 def get_text(docs):
 
@@ -133,11 +171,12 @@ def get_text(docs):
 
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=900,
+        chunk_size=512,
         chunk_overlap=100,
         length_function=tiktoken_len
     )
     chunks = text_splitter.split_documents(text)
+    print("text chunk Processe Complete")
     return chunks
 
 
@@ -148,6 +187,7 @@ def get_vectorstore(text_chunks):
                                         encode_kwargs={'normalize_embeddings': True}
                                         )  
     vectordb = FAISS.from_documents(text_chunks, embeddings)
+    print("vector store Processe Complete")
     return vectordb
 
 def get_conversation_chain(vetorestore,openai_api_key):
@@ -162,6 +202,7 @@ def get_conversation_chain(vetorestore,openai_api_key):
             verbose = True
         )
 
+    print("chain Processe Complete")
     return conversation_chain
 
 
